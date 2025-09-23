@@ -6,8 +6,9 @@ import { tmdbApi } from './services/tmdbApi';
 import { genreMap, calculateAverageRating } from './utils/helpers';
 import StatsCard from './components/StatsCard';
 import SearchBar from './components/SearchBar';
-import GenreFilter from './components/GenreFilter';
+import GenreFilter from './components/GenreFilter'; // Corrected file name
 import MovieCard from './components/MovieCard';
+import ErrorDisplay from './components/ErrorDisplay'; // New import
 
 function App() {
   const [activeTab, setActiveTab] = useState('trending');
@@ -128,21 +129,7 @@ function App() {
   };
 
   if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-6 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center bg-white/10 backdrop-blur rounded-xl p-8 border border-white/20">
-          <div className="text-6xl mb-4">❌</div>
-          <h2 className="text-white text-2xl font-bold mb-4">Error Loading Data</h2>
-          <p className="text-purple-200 mb-4">{error}</p>
-          <button 
-            onClick={loadInitialData}
-            className="px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
+    return <ErrorDisplay error={error} onRetry={loadInitialData} />;
   }
 
   return (

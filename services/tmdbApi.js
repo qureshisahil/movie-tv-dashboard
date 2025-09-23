@@ -1,5 +1,5 @@
 // TMDB API configuration
-const API_KEY = '571febd31dc1d4feacf02e098c7ea456';
+const API_KEY = process.env.REACT_APP_TMDB_API_KEY; // Securely access the API key
 const BASE_URL = 'https://api.themoviedb.org/3';
 export const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 
