@@ -2,17 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Star, TrendingUp, Play, Heart, Bookmark } from 'lucide-react';
 import './App.css';
 
-import { tmdbApi, getMediaType } from './services/tmdbApi'; // Changed import
+import { tmdbApi } from './services/tmdbApi';
 import { genreMap, calculateAverageRating } from './utils/helpers';
 import StatsCard from './components/StatsCard';
 import SearchBar from './components/SearchBar';
 import GenreFilter from './components/GenreFilter';
 import MovieCard from './components/MovieCard';
 import ErrorDisplay from './components/ErrorDisplay';
-import DetailsModal from './components/DetailsModal'; // Import the modal
+import DetailsModal from './components/DetailsModal';
 
 function App() {
-  // ... (existing states)
   const [activeTab, setActiveTab] = useState('trending');
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,8 +27,6 @@ function App() {
   const [details, setDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
-
-  // ... (loadInitialData, searchMovies, useEffect, toggles, getFilteredData are unchanged)
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -136,7 +133,7 @@ function App() {
     return data;
   };
 
-  // New functions to handle modal
+  // Functions to handle modal
   const handleCardClick = async (item) => {
     setSelectedItem(item);
     setDetailsLoading(true);
@@ -159,26 +156,26 @@ function App() {
     setDetails(null);
   };
 
-
-  if (error && !selectedItem) { // Only show full-page error if modal isn't active
+  if (error && !selectedItem) {
     return <ErrorDisplay error={error} onRetry={loadInitialData} />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
-      {/* ... (Header, Stats, and Controls sections are unchanged) ... */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-indigo-950 text-gray-200">
+      {/* Header */}
       <div className="p-6 border-b border-white/10">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
             <Play className="text-purple-400" />
             CineTracker
           </h1>
-          <p className="text-purple-200">
+          <p className="text-gray-400">
             Real-time movie and TV show data from The Movie Database
           </p>
         </div>
       </div>
 
+      {/* Stats Overview */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -207,8 +204,9 @@ function App() {
             />
           </div>
 
+          {/* Controls */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="flex bg-white/10 backdrop-blur rounded-lg p-1 border border-white/20">
+            <div className="flex bg-white/5 backdrop-blur-xl rounded-lg p-1 border border-white/10">
               {['trending', 'topRated'].map((tab) => (
                 <button
                   key={tab}
@@ -218,8 +216,8 @@ function App() {
                   }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
                     activeTab === tab && !searchTerm
-                      ? 'bg-purple-500 text-white shadow-lg'
-                      : 'text-purple-200 hover:text-white hover:bg-white/10'
+                      ? 'bg-purple-600 text-white shadow-lg'
+                      : 'text-gray-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {tab === 'trending' ? 'Trending' : 'Top Rated'}
@@ -258,17 +256,18 @@ function App() {
                   watchlist={watchlist}
                   toggleFavorite={toggleFavorite}
                   toggleWatchlist={toggleWatchlist}
-                  onCardClick={handleCardClick} // Pass the click handler
+                  onCardClick={handleCardClick}
                 />
               ))}
             </div>
           )}
 
+          {/* No Results */}
           {!loading && getFilteredData().length === 0 && (
             <div className="text-center py-12">
-              <div className="text-purple-400 text-6xl mb-4">🎬</div>
+              <div className="text-indigo-400 text-6xl mb-4">🎬</div>
               <h3 className="text-white text-xl font-semibold mb-2">No results found</h3>
-              <p className="text-purple-200">
+              <p className="text-gray-400">
                 {searchTerm ? 'Try a different search term' : 'Try adjusting your filter criteria'}
               </p>
             </div>
