@@ -1,79 +1,90 @@
 import React, { useState, useEffect } from 'react';
-import { Star, TrendingUp, Play, Heart, Bookmark } from 'lucide-react';
+import { Play } from 'lucide-react';
 import './App.css';
 
 import { tmdbApi } from './services/tmdbApi';
-import { genreMap, calculateAverageRating } from './utils/helpers';
-import StatsCard from './components/StatsCard';
+import { genreMap } from './utils/helpers';
 import SearchBar from './components/SearchBar';
-import GenreFilter from './components/GenreFilter';
 import MovieCard from './components/MovieCard';
 import ErrorDisplay from './components/ErrorDisplay';
 import DetailsModal from './components/DetailsModal';
+import AdvancedFilters from './components/AdvancedFilters';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('trending');
-  const [selectedGenre, setSelectedGenre] = useState('all');
+  const [activeTab, setActiveTab] = useState('discover'); // Default to discover
   const [searchTerm, setSearchTerm] = useState('');
   const [favorites, setFavorites] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
-  const [movieData, setMovieData] = useState({ trending: [], topRated: [], search: [] });
-  const [genres, setGenres] = useState([]);
+  const [movieData, setMovieData] = useState({ discover: [], trending: [], topRated: [], search: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // New states for the modal
+  // States for the modal
   const [selectedItem, setSelectedItem] = useState(null);
   const [details, setDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
-
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+  
+  // States for advanced filters
+  const [selectedGenre, setSelectedGenre] = useState('all');
+  const [sortBy, setSortBy] = useState('popularity.desc');
 
   const loadInitialData = async () => {
     setLoading(true);
     setError(null);
-    
     try {
-      const [trendingRes, topRatedMoviesRes, topRatedTVRes] = await Promise.all([
+      const [trendingRes, topRatedMoviesRes] = await Promise.all([
         tmdbApi.getTrending(),
         tmdbApi.getTopRatedMovies(),
-        tmdbApi.getTopRatedTV()
       ]);
 
-      const topRatedCombined = [
-        ...topRatedMoviesRes.results.slice(0, 10).map(item => ({ ...item, media_type: 'movie' })),
-        ...topRatedTVRes.results.slice(0, 10).map(item => ({ ...item, media_type: 'tv' }))
-      ].sort((a, b) => b.vote_average - a.vote_average);
-
-      setMovieData({
+      setMovieData(prev => ({
+        ...prev,
         trending: trendingRes.results || [],
-        topRated: topRatedCombined,
-        search: []
-      });
-
-      const allItems = [...trendingRes.results, ...topRatedCombined];
-      const uniqueGenres = [...new Set(allItems.flatMap(item => item.genre_ids || []))]
-        .map(id => genreMap[id])
-        .filter(Boolean)
-        .sort();
-      
-      setGenres(['all', ...uniqueGenres]);
+        topRated: topRatedMoviesRes.results || [],
+      }));
     } catch (err) {
       setError('Failed to load data. Please check your API key.');
-      console.error('Error loading data:', err);
+      console.error('Error loading initial data:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadDiscoverData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const discoverRes = await tmdbApi.discover({ genreId: selectedGenre, sortBy });
+      setMovieData(prev => ({
+        ...prev,
+        discover: discoverRes.results.map(item => ({...item, media_type: 'movie'})) || [],
+      }));
+    } catch (err) {
+      setError('Failed to load data. Please check your filters.');
+      console.error('Error loading discover data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Effect for initial load and tab switching
+  useEffect(() => {
+    // Load static lists once on mount
+    loadInitialData();
+  }, []);
+
+  // Effect for dynamic filtering on the discover tab
+  useEffect(() => {
+    if (activeTab === 'discover') {
+      loadDiscoverData();
+    }
+  }, [activeTab, selectedGenre, sortBy]);
 
   const searchMovies = async (query) => {
     if (!query.trim()) {
       setMovieData(prev => ({ ...prev, search: [] }));
       return;
     }
-
     setLoading(true);
     try {
       const searchRes = await tmdbApi.searchMulti(query);
@@ -92,11 +103,11 @@ function App() {
     const timer = setTimeout(() => {
       if (searchTerm) {
         searchMovies(searchTerm);
-      } else {
+      } else if (activeTab !== 'discover') {
+        // Clear search results if search term is cleared and not on discover tab
         setMovieData(prev => ({ ...prev, search: [] }));
       }
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
@@ -117,23 +128,12 @@ function App() {
   };
 
   const getFilteredData = () => {
-    let data = [];
-    
     if (searchTerm && movieData.search.length > 0) {
-      data = movieData.search;
-    } else {
-      data = movieData[activeTab] || [];
+      return movieData.search;
     }
-    
-    if (selectedGenre !== 'all') {
-      const genreId = Object.keys(genreMap).find(key => genreMap[key] === selectedGenre);
-      data = data.filter(item => item.genre_ids?.includes(parseInt(genreId)));
-    }
-    
-    return data;
+    return movieData[activeTab] || [];
   };
 
-  // Functions to handle modal
   const handleCardClick = async (item) => {
     setSelectedItem(item);
     setDetailsLoading(true);
@@ -157,12 +157,11 @@ function App() {
   };
 
   if (error && !selectedItem) {
-    return <ErrorDisplay error={error} onRetry={loadInitialData} />;
+    return <ErrorDisplay error={error} onRetry={activeTab === 'discover' ? loadDiscoverData : loadInitialData} />;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-indigo-950 text-gray-200">
-      {/* Header */}
       <div className="p-6 border-b border-white/10">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
@@ -170,57 +169,29 @@ function App() {
             CineTracker
           </h1>
           <p className="text-gray-400">
-            Real-time movie and TV show data from The Movie Database
+            Discover your next favorite movie or TV show.
           </p>
         </div>
       </div>
 
-      {/* Stats Overview */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <StatsCard
-              title={searchTerm ? 'Search Results' : activeTab === 'trending' ? 'Trending Now' : 'Top Rated'}
-              value={getFilteredData().length}
-              icon={TrendingUp}
-            />
-            
-            <StatsCard
-              title="Avg Rating"
-              value={calculateAverageRating(getFilteredData())}
-              icon={Star}
-            />
-            
-            <StatsCard
-              title="Favorites"
-              value={favorites.length}
-              icon={Heart}
-            />
-            
-            <StatsCard
-              title="Watchlist"
-              value={watchlist.length}
-              icon={Bookmark}
-            />
-          </div>
-
-          {/* Controls */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="flex bg-white/5 backdrop-blur-xl rounded-lg p-1 border border-white/10">
-              {['trending', 'topRated'].map((tab) => (
+              {['discover', 'trending', 'topRated'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => {
                     setActiveTab(tab);
                     setSearchTerm('');
                   }}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all capitalize ${
                     activeTab === tab && !searchTerm
                       ? 'bg-purple-600 text-white shadow-lg'
                       : 'text-gray-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  {tab === 'trending' ? 'Trending' : 'Top Rated'}
+                  {tab === 'topRated' ? 'Top Rated' : tab}
                 </button>
               ))}
             </div>
@@ -230,15 +201,18 @@ function App() {
               setSearchTerm={setSearchTerm}
               loading={loading}
             />
-
-            <GenreFilter 
-              selectedGenre={selectedGenre}
-              setSelectedGenre={setSelectedGenre}
-              genres={genres}
-            />
           </div>
 
-          {/* Content Grid */}
+          {activeTab === 'discover' && !searchTerm && (
+            <AdvancedFilters
+              selectedGenre={selectedGenre}
+              setSelectedGenre={setSelectedGenre}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              genres={Object.entries(genreMap).map(([id, name]) => ({ id, name }))}
+            />
+          )}
+
           {loading && getFilteredData().length === 0 ? (
             <div className="flex justify-center items-center h-64">
               <div className="text-center">
@@ -262,20 +236,18 @@ function App() {
             </div>
           )}
 
-          {/* No Results */}
           {!loading && getFilteredData().length === 0 && (
             <div className="text-center py-12">
               <div className="text-indigo-400 text-6xl mb-4">🎬</div>
               <h3 className="text-white text-xl font-semibold mb-2">No results found</h3>
               <p className="text-gray-400">
-                {searchTerm ? 'Try a different search term' : 'Try adjusting your filter criteria'}
+                {searchTerm ? 'Try a different search term.' : 'Try adjusting your filters or switching tabs.'}
               </p>
             </div>
           )}
         </div>
       </div>
       
-      {/* Render the modal */}
       {selectedItem && (
         <DetailsModal
           item={selectedItem}

@@ -1,7 +1,8 @@
 // TMDB API configuration
-const API_KEY = process.env.REACT_APP_TMDB_API_KEY; // Securely access the API key
+const API_KEY = process.env.REACT_APP_TMDB_API_KEY;
 const BASE_URL = 'https://api.themoviedb.org/3';
 export const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+export const BACKDROP_BASE_URL = 'https://image.tmdb.org/t/p/original';
 
 // API service functions
 export const tmdbApi = {
@@ -55,10 +56,26 @@ export const tmdbApi = {
     }
   },
 
-  // Get movie details
+  // NEW: Discover movies based on filters
+  discover: async ({ genreId, sortBy }) => {
+    try {
+      let url = `${BASE_URL}/discover/movie?api_key=${API_KEY}&sort_by=${sortBy}`;
+      if (genreId && genreId !== 'all') {
+        url += `&with_genres=${genreId}`;
+      }
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch discover data');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching discover data:', error);
+      throw error;
+    }
+  },
+
+  // Get movie details with credits
   getMovieDetails: async (movieId) => {
     try {
-      const response = await fetch(`${BASE_URL}/movie/${movieId}?api_key=${API_KEY}`);
+      const response = await fetch(`${BASE_URL}/movie/${movieId}?api_key=${API_KEY}&append_to_response=credits`);
       if (!response.ok) throw new Error('Failed to fetch movie details');
       return await response.json();
     } catch (error) {
@@ -67,10 +84,10 @@ export const tmdbApi = {
     }
   },
 
-  // Get TV show details
+  // Get TV show details with credits
   getTVDetails: async (tvId) => {
     try {
-      const response = await fetch(`${BASE_URL}/tv/${tvId}?api_key=${API_KEY}`);
+      const response = await fetch(`${BASE_URL}/tv/${tvId}?api_key=${API_KEY}&append_to_response=credits`);
       if (!response.ok) throw new Error('Failed to fetch TV details');
       return await response.json();
     } catch (error) {

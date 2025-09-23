@@ -4,10 +4,9 @@ const BASE_URL = 'https://api.themoviedb.org/3';
 export const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 export const BACKDROP_BASE_URL = 'https://image.tmdb.org/t/p/original';
 
-
 // API service functions
 export const tmdbApi = {
-  // ... (getTrending, getTopRatedMovies, getTopRatedTV, searchMulti functions are unchanged)
+  // Get trending movies and TV shows
   getTrending: async () => {
     try {
       const response = await fetch(`${BASE_URL}/trending/all/week?api_key=${API_KEY}`);
@@ -19,6 +18,7 @@ export const tmdbApi = {
     }
   },
 
+  // Get top rated movies
   getTopRatedMovies: async () => {
     try {
       const response = await fetch(`${BASE_URL}/movie/top_rated?api_key=${API_KEY}`);
@@ -30,6 +30,7 @@ export const tmdbApi = {
     }
   },
 
+  // Get top rated TV shows
   getTopRatedTV: async () => {
     try {
       const response = await fetch(`${BASE_URL}/tv/top_rated?api_key=${API_KEY}`);
@@ -41,6 +42,7 @@ export const tmdbApi = {
     }
   },
 
+  // Search for movies and TV shows
   searchMulti: async (query) => {
     try {
       const response = await fetch(
@@ -50,6 +52,22 @@ export const tmdbApi = {
       return await response.json();
     } catch (error) {
       console.error('Error searching:', error);
+      throw error;
+    }
+  },
+
+  // NEW: Discover movies based on filters
+  discover: async ({ genreId, sortBy }) => {
+    try {
+      let url = `${BASE_URL}/discover/movie?api_key=${API_KEY}&sort_by=${sortBy}`;
+      if (genreId && genreId !== 'all') {
+        url += `&with_genres=${genreId}`;
+      }
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch discover data');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching discover data:', error);
       throw error;
     }
   },
