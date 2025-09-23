@@ -11,10 +11,15 @@ import {
 } from '../utils/helpers';
 import { IMAGE_BASE_URL } from '../services/tmdbApi';
 
-const MovieCard = ({ item, favorites, watchlist, toggleFavorite, toggleWatchlist }) => {
+const MovieCard = ({ item, favorites, watchlist, toggleFavorite, toggleWatchlist, onCardClick }) => { // Add onCardClick prop
+  const handleActionClick = (e, action) => {
+    e.stopPropagation(); // Prevent modal from opening when clicking favorite/watchlist
+    action(item.id);
+  };
+
   return (
-    <div className="group relative">
-      <div className="bg-white/10 backdrop-blur rounded-xl overflow-hidden border border-white/20 hover:border-purple-400/50 transition-all duration-300 hover:scale-105">
+    <div className="group relative" onClick={() => onCardClick(item)}> {/* Add onClick here */}
+      <div className="bg-white/10 backdrop-blur rounded-xl overflow-hidden border border-white/20 hover:border-purple-400/50 transition-all duration-300 hover:scale-105 cursor-pointer">
         {/* Poster */}
         <div className="relative overflow-hidden">
           <img
@@ -27,7 +32,6 @@ const MovieCard = ({ item, favorites, watchlist, toggleFavorite, toggleWatchlist
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           
-          {/* Type Badge */}
           <div className={`absolute top-2 left-2 px-2 py-1 rounded-md text-xs font-medium ${
             getMediaType(item) === 'movie' ? 'bg-blue-500' : 'bg-green-500'
           }`}>
@@ -37,7 +41,7 @@ const MovieCard = ({ item, favorites, watchlist, toggleFavorite, toggleWatchlist
           {/* Action Buttons */}
           <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <button
-              onClick={() => toggleFavorite(item.id)}
+              onClick={(e) => handleActionClick(e, toggleFavorite)}
               className={`p-2 rounded-full backdrop-blur transition-colors ${
                 favorites.includes(item.id)
                   ? 'bg-red-500 text-white'
@@ -47,7 +51,7 @@ const MovieCard = ({ item, favorites, watchlist, toggleFavorite, toggleWatchlist
               <Heart className="w-4 h-4" />
             </button>
             <button
-              onClick={() => toggleWatchlist(item.id)}
+              onClick={(e) => handleActionClick(e, toggleWatchlist)}
               className={`p-2 rounded-full backdrop-blur transition-colors ${
                 watchlist.includes(item.id)
                   ? 'bg-blue-500 text-white'
@@ -65,7 +69,6 @@ const MovieCard = ({ item, favorites, watchlist, toggleFavorite, toggleWatchlist
             {getTitle(item)}
           </h3>
           
-          {/* Rating */}
           <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border mb-3 ${getRatingBg(item.vote_average)}`}>
             <Star className={`w-4 h-4 ${getRatingColor(item.vote_average)}`} />
             <span className={`text-sm font-medium ${getRatingColor(item.vote_average)}`}>
@@ -73,7 +76,6 @@ const MovieCard = ({ item, favorites, watchlist, toggleFavorite, toggleWatchlist
             </span>
           </div>
 
-          {/* Genres */}
           <div className="flex flex-wrap gap-1 mb-3">
             {getGenreNames(item).map((genre, index) => (
               <span
@@ -84,8 +86,8 @@ const MovieCard = ({ item, favorites, watchlist, toggleFavorite, toggleWatchlist
               </span>
             ))}
           </div>
-
-          {/* Release Date */}
+          
+          {/* ... (rest of the card is the same) ... */}
           {getReleaseDate(item) && (
             <div className="flex items-center gap-1 text-purple-200 text-sm mb-2">
               <Calendar className="w-4 h-4" />
@@ -93,12 +95,10 @@ const MovieCard = ({ item, favorites, watchlist, toggleFavorite, toggleWatchlist
             </div>
           )}
 
-          {/* Overview */}
           <p className="text-purple-100 text-sm line-clamp-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             {item.overview || 'No overview available.'}
           </p>
-
-          {/* Popularity */}
+          
           <div className="mt-3 pt-3 border-t border-white/10">
             <div className="flex items-center justify-between text-sm">
               <span className="text-purple-200">Popularity</span>

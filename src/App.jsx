@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Star, TrendingUp, Play, Heart, Bookmark } from 'lucide-react';
 import './App.css';
 
-import { tmdbApi } from './services/tmdbApi';
+import { tmdbApi, getMediaType } from './services/tmdbApi'; // Changed import
 import { genreMap, calculateAverageRating } from './utils/helpers';
 import StatsCard from './components/StatsCard';
 import SearchBar from './components/SearchBar';
-import GenreFilter from './components/GenreFilter'; // Corrected file name
+import GenreFilter from './components/GenreFilter';
 import MovieCard from './components/MovieCard';
-import ErrorDisplay from './components/ErrorDisplay'; // New import
+import ErrorDisplay from './components/ErrorDisplay';
+import DetailsModal from './components/DetailsModal'; // Import the modal
 
 function App() {
+  // ... (existing states)
   const [activeTab, setActiveTab] = useState('trending');
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,6 +23,13 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // New states for the modal
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [details, setDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
+
+  // ... (loadInitialData, searchMovies, useEffect, toggles, getFilteredData are unchanged)
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -47,7 +56,6 @@ function App() {
         search: []
       });
 
-      // Extract unique genres
       const allItems = [...trendingRes.results, ...topRatedCombined];
       const uniqueGenres = [...new Set(allItems.flatMap(item => item.genre_ids || []))]
         .map(id => genreMap[id])
@@ -128,13 +136,37 @@ function App() {
     return data;
   };
 
-  if (error) {
+  // New functions to handle modal
+  const handleCardClick = async (item) => {
+    setSelectedItem(item);
+    setDetailsLoading(true);
+    try {
+      const mediaType = item.media_type === 'movie' ? 'movie' : 'tv';
+      const detailsData = mediaType === 'movie'
+        ? await tmdbApi.getMovieDetails(item.id)
+        : await tmdbApi.getTVDetails(item.id);
+      setDetails(detailsData);
+    } catch (err) {
+      console.error("Failed to fetch details", err);
+      setError("Could not fetch details for this item.");
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedItem(null);
+    setDetails(null);
+  };
+
+
+  if (error && !selectedItem) { // Only show full-page error if modal isn't active
     return <ErrorDisplay error={error} onRetry={loadInitialData} />;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
-      {/* Header */}
+      {/* ... (Header, Stats, and Controls sections are unchanged) ... */}
       <div className="p-6 border-b border-white/10">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
@@ -147,7 +179,6 @@ function App() {
         </div>
       </div>
 
-      {/* Stats Overview */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -176,9 +207,7 @@ function App() {
             />
           </div>
 
-          {/* Controls */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
-            {/* Tabs */}
             <div className="flex bg-white/10 backdrop-blur rounded-lg p-1 border border-white/20">
               {['trending', 'topRated'].map((tab) => (
                 <button
@@ -198,14 +227,12 @@ function App() {
               ))}
             </div>
 
-            {/* Search */}
             <SearchBar 
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
               loading={loading}
             />
 
-            {/* Genre Filter */}
             <GenreFilter 
               selectedGenre={selectedGenre}
               setSelectedGenre={setSelectedGenre}
@@ -231,12 +258,12 @@ function App() {
                   watchlist={watchlist}
                   toggleFavorite={toggleFavorite}
                   toggleWatchlist={toggleWatchlist}
+                  onCardClick={handleCardClick} // Pass the click handler
                 />
               ))}
             </div>
           )}
 
-          {/* No Results */}
           {!loading && getFilteredData().length === 0 && (
             <div className="text-center py-12">
               <div className="text-purple-400 text-6xl mb-4">🎬</div>
@@ -248,6 +275,16 @@ function App() {
           )}
         </div>
       </div>
+      
+      {/* Render the modal */}
+      {selectedItem && (
+        <DetailsModal
+          item={selectedItem}
+          details={details}
+          loading={detailsLoading}
+          onClose={handleCloseDetails}
+        />
+      )}
     </div>
   );
 }

@@ -1,11 +1,13 @@
 // TMDB API configuration
-const API_KEY = process.env.REACT_APP_TMDB_API_KEY; // Securely access the API key
+const API_KEY = process.env.REACT_APP_TMDB_API_KEY;
 const BASE_URL = 'https://api.themoviedb.org/3';
 export const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+export const BACKDROP_BASE_URL = 'https://image.tmdb.org/t/p/original';
+
 
 // API service functions
 export const tmdbApi = {
-  // Get trending movies and TV shows
+  // ... (getTrending, getTopRatedMovies, getTopRatedTV, searchMulti functions are unchanged)
   getTrending: async () => {
     try {
       const response = await fetch(`${BASE_URL}/trending/all/week?api_key=${API_KEY}`);
@@ -17,7 +19,6 @@ export const tmdbApi = {
     }
   },
 
-  // Get top rated movies
   getTopRatedMovies: async () => {
     try {
       const response = await fetch(`${BASE_URL}/movie/top_rated?api_key=${API_KEY}`);
@@ -29,7 +30,6 @@ export const tmdbApi = {
     }
   },
 
-  // Get top rated TV shows
   getTopRatedTV: async () => {
     try {
       const response = await fetch(`${BASE_URL}/tv/top_rated?api_key=${API_KEY}`);
@@ -41,7 +41,6 @@ export const tmdbApi = {
     }
   },
 
-  // Search for movies and TV shows
   searchMulti: async (query) => {
     try {
       const response = await fetch(
@@ -55,10 +54,10 @@ export const tmdbApi = {
     }
   },
 
-  // Get movie details
+  // Get movie details with credits
   getMovieDetails: async (movieId) => {
     try {
-      const response = await fetch(`${BASE_URL}/movie/${movieId}?api_key=${API_KEY}`);
+      const response = await fetch(`${BASE_URL}/movie/${movieId}?api_key=${API_KEY}&append_to_response=credits`);
       if (!response.ok) throw new Error('Failed to fetch movie details');
       return await response.json();
     } catch (error) {
@@ -67,10 +66,10 @@ export const tmdbApi = {
     }
   },
 
-  // Get TV show details
+  // Get TV show details with credits
   getTVDetails: async (tvId) => {
     try {
-      const response = await fetch(`${BASE_URL}/tv/${tvId}?api_key=${API_KEY}`);
+      const response = await fetch(`${BASE_URL}/tv/${tvId}?api_key=${API_KEY}&append_to_response=credits`);
       if (!response.ok) throw new Error('Failed to fetch TV details');
       return await response.json();
     } catch (error) {
