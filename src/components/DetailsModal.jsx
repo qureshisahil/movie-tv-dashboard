@@ -1,14 +1,14 @@
 import React from 'react';
 import { X, Star, Calendar, Tv, Film } from 'lucide-react';
-import { IMAGE_BASE_URL, BACKDROP_BASE_URL } from '../services/tmdbApi';
+import { IMAGE_BASE_URL } from '../services/tmdbApi';
 import { getTitle, getReleaseDate, getPosterUrl, getRatingColor } from '../utils/helpers';
 
 const DetailsModal = ({ item, details, loading, onClose }) => {
   if (!item) return null;
 
-  const title = getTitle(details);
+  // These variables will only be calculated if details exist
+  const title = details ? getTitle(details) : '';
   const releaseYear = details ? new Date(getReleaseDate(details)).getFullYear() : '';
-  const backdropUrl = details?.backdrop_path ? `${BACKDROP_BASE_URL}${details.backdrop_path}` : '';
   
   return (
     <div 
@@ -26,11 +26,11 @@ const DetailsModal = ({ item, details, loading, onClose }) => {
           <X size={24} />
         </button>
 
-        {loading ? (
+        {loading || !details ? ( // <-- Updated check here to also wait for details
           <div className="w-full flex items-center justify-center p-8">
             <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
           </div>
-        ) : details && (
+        ) : (
           <>
             {/* Left Side: Poster */}
             <div className="w-full md:w-1/3 flex-shrink-0">
