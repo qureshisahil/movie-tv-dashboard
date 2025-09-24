@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, List, TrendingUp, Award, Search as SearchIcon, Sparkles } from 'lucide-react';
+import { Play, List } from 'lucide-react';
 import './App.css';
 
 import { tmdbApi } from './services/tmdbApi';
@@ -9,21 +9,17 @@ import MovieCard from './components/MovieCard';
 import ErrorDisplay from './components/ErrorDisplay';
 import DetailsModal from './components/DetailsModal';
 import AdvancedFilters from './components/AdvancedFilters';
-import AISuggestion from './components/AISuggestion';
 import { SkeletonGrid } from './components/SkeletonCard';
+import AISuggestion from './components/AISuggestion';
 
 function App() {
   const [activeTab, setActiveTab] = useState('discover');
   const [searchTerm, setSearchTerm] = useState('');
   const [favorites, setFavorites] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
-  const [movieData, setMovieData] = useState({ 
-    discover: [], 
-    trending: [], 
-    topRated: [], 
-    search: [],
-    aiSuggestions: []
-  });
+  const [movieData, setMovieData] = useState({ discover: [], trending: [], topRated: [], search: [] });
+  const [aiResults, setAiResults] = useState([]);
+  const [isAiSearch, setIsAiSearch] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -35,18 +31,19 @@ function App() {
   // Filter states
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [sortBy, setSortBy] = useState('popularity.desc');
-  const [advancedFilters, setAdvancedFilters] = useState({});
-  const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'discover' && !searchTerm) {
-      loadDiscoverData();
-    } else if ((activeTab === 'trending' || activeTab === 'topRated') && !searchTerm) {
-      loadStaticData(activeTab);
+    if (!searchTerm && !isAiSearch) {
+      if (activeTab === 'discover') {
+        loadDiscoverData();
+      } else if (activeTab === 'trending' || activeTab === 'topRated') {
+        loadStaticData(activeTab);
+      }
     }
-  }, [activeTab, selectedGenre, sortBy, advancedFilters, searchTerm]);
+  }, [activeTab, selectedGenre, sortBy, searchTerm, isAiSearch]);
 
   const loadStaticData = async (tab) => {
+    if (movieData[tab]?.length > 0) return; // Don't refetch if data exists
     setLoading(true);
     setError(null);
     try {
@@ -55,7 +52,6 @@ function App() {
       setMovieData(prev => ({ ...prev, [tab]: response.results || [] }));
     } catch (err) {
       setError('Failed to load data. Please check your API key.');
-      console.error(`Error loading ${tab} data:`, err);
     } finally {
       setLoading(false);
     }
@@ -65,20 +61,13 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      const filters = {
-        genreId: selectedGenre,
-        sortBy,
-        ...advancedFilters
-      };
-      
-      const discoverRes = await tmdbApi.discover(filters);
+      const discoverRes = await tmdbApi.discover({ genreId: selectedGenre, sortBy });
       setMovieData(prev => ({
         ...prev,
         discover: discoverRes.results.map(item => ({...item, media_type: 'movie'})) || [],
       }));
     } catch (err) {
       setError('Failed to load data. Please check your filters.');
-      console.error('Error loading discover data:', err);
     } finally {
       setLoading(false);
     }
@@ -95,34 +84,14 @@ function App() {
       return;
     }
     setLoading(true);
+    setIsAiSearch(false);
     try {
       const searchRes = await tmdbApi.searchMulti(query);
-      setMovieData(prev => ({
-        ...prev,
-        search: searchRes.results || []
-      }));
+      setMovieData(prev => ({ ...prev, search: searchRes.results || [] }));
     } catch (err) {
       setError('Search failed');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAISuggestion = async (description) => {
-    setAiSuggestionLoading(true);
-    setActiveTab('aiSuggestions');
-    setSearchTerm('');
-    try {
-      const suggestions = await tmdbApi.suggestMoviesByDescription(description);
-      setMovieData(prev => ({
-        ...prev,
-        aiSuggestions: suggestions.results || []
-      }));
-    } catch (err) {
-      setError('AI suggestion failed. Please try a different description.');
-      console.error('Error getting AI suggestions:', err);
-    } finally {
-      setAiSuggestionLoading(false);
     }
   };
 
@@ -135,26 +104,41 @@ function App() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  const handleAiSearch = async (keywords) => {
+    if (!keywords || keywords.length === 0) return;
+    setLoading(true);
+    setIsAiSearch(true);
+    setSearchTerm('');
+    try {
+      const searchPromises = keywords.map(keyword => tmdbApi.searchMulti(keyword));
+      const searchResults = await Promise.all(searchPromises);
+      const combined = searchResults.flatMap(res => res.results);
+      const uniqueResults = Array.from(new Map(combined.map(item => [item.id, item])).values())
+        .sort((a, b) => b.popularity - a.popularity);
+      setAiResults(uniqueResults);
+    } catch (err) {
+      setError('AI search failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleFavorite = (id) => {
     setFavorites(prev => 
-      prev.includes(id) 
-        ? prev.filter(fav => fav !== id)
-        : [...prev, id]
+      prev.includes(id) ? prev.filter(fav => fav !== id) : [...prev, id]
     );
   };
 
   const toggleWatchlist = (id) => {
     setWatchlist(prev => 
-      prev.includes(id) 
-        ? prev.filter(watch => watch !== id)
-        : [...prev, id]
+      prev.includes(id) ? prev.filter(watch => watch !== id) : [...prev, id]
     );
   };
 
   const getFilteredData = () => {
-    if (searchTerm) {
-      return movieData.search;
-    }
+    if (isAiSearch) return aiResults;
+    if (searchTerm) return movieData.search;
+    
     if (activeTab === 'myLists') {
       const allSavedIds = [...new Set([...favorites, ...watchlist])];
       const allKnownItems = [
@@ -162,7 +146,7 @@ function App() {
         ...movieData.trending, 
         ...movieData.topRated,
         ...movieData.search,
-        ...movieData.aiSuggestions
+        ...aiResults
       ];
       return allSavedIds.map(id => allKnownItems.find(item => item && item.id === id)).filter(Boolean);
     }
@@ -190,216 +174,138 @@ function App() {
     setSelectedItem(null);
     setDetails(null);
   };
+  
+  const clearSearch = () => {
+    setSearchTerm('');
+    setIsAiSearch(false);
+    setAiResults([]);
+    setActiveTab('discover'); // Go back to discover tab
+  };
+  
+  const handleLogoClick = () => {
+    setActiveTab('discover');
+    clearSearch();
+  };
 
   const currentData = getFilteredData();
-
-  const tabs = [
-    { 
-      key: 'discover', 
-      label: 'Discover', 
-      icon: SearchIcon, 
-      description: 'Find new movies with advanced filters' 
-    },
-    { 
-      key: 'trending', 
-      label: 'Trending', 
-      icon: TrendingUp, 
-      description: 'What\'s popular right now' 
-    },
-    { 
-      key: 'topRated', 
-      label: 'Top Rated', 
-      icon: Award, 
-      description: 'Highest rated movies' 
-    },
-    { 
-      key: 'aiSuggestions', 
-      label: 'AI Picks', 
-      icon: Sparkles, 
-      description: 'AI-powered recommendations' 
-    },
-    { 
-      key: 'myLists', 
-      label: 'My Lists', 
-      icon: List, 
-      description: 'Your saved movies' 
-    }
-  ];
 
   if (error && !selectedItem) {
     return <ErrorDisplay error={error} onRetry={loadDiscoverData} />;
   }
 
   return (
-    <div className="min-h-screen gradient-dark text-gray-200">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 via-pink-900/20 to-blue-900/20"></div>
-        <div className="relative p-8 text-center">
-          <div className="animate-float">
-            <h1 className="text-6xl md:text-7xl font-black text-gradient text-glow mb-4" 
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              CineVerse
+    <div className="min-h-screen bg-gradient-to-b from-[#0f0c29] via-[#302b63] to-[#24243e] text-gray-200">
+      <header className="sticky top-0 z-40 bg-slate-900/70 backdrop-blur-lg border-b border-slate-800">
+        <div className="p-4 text-center">
+          <button onClick={handleLogoClick} className="focus:outline-none">
+            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 mb-2" style={{ fontFamily: "'Poppins', sans-serif" }}>
+              Binge It!
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-              Discover your next cinematic obsession with AI-powered recommendations 
-              and advanced filtering
-            </p>
-          </div>
-          <div className="absolute top-4 right-4 w-32 h-32 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse-glow"></div>
-          <div className="absolute bottom-4 left-4 w-24 h-24 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-2xl animate-pulse-glow"></div>
+          </button>
+          <p className="text-gray-500 text-sm">
+            Discover your next favorite movie or TV show.
+          </p>
         </div>
-      </div>
+      </header>
 
-      <div className="container mx-auto px-6 pb-12">
-        {/* Navigation Tabs */}
-        <div className="glass-morphism rounded-2xl p-2 mb-8 border border-white/10">
-          <div className="flex flex-wrap justify-center gap-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key && !searchTerm;
-              return (
+      <main className="p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex bg-white/5 backdrop-blur-xl rounded-lg p-1 border border-white/10">
+              {['discover', 'trending', 'topRated', 'myLists'].map((tab) => (
                 <button
-                  key={tab.key}
+                  key={tab}
                   onClick={() => {
-                    setActiveTab(tab.key);
-                    setSearchTerm('');
+                    setActiveTab(tab);
+                    clearSearch();
                   }}
-                  className={`group relative px-6 py-4 rounded-xl text-sm font-bold transition-all flex items-center gap-3 min-w-[140px] ${
-                    isActive
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg scale-105'
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all capitalize flex items-center gap-2 ${
+                    activeTab === tab && !searchTerm && !isAiSearch
+                      ? 'bg-purple-600 text-white shadow-lg'
                       : 'text-gray-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  <Icon size={18} className={isActive ? 'animate-pulse' : ''} />
-                  <div className="text-left">
-                    <div>{tab.label}</div>
-                    <div className="text-xs opacity-75 font-normal">{tab.description}</div>
-                  </div>
-                  {isActive && (
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-600/20 to-pink-600/20 animate-pulse-glow"></div>
-                  )}
+                  {tab === 'myLists' && <List size={16} />}
+                  {tab === 'myLists' ? 'My Lists' : tab === 'topRated' ? 'Top Rated' : tab}
                 </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Search Bar - Always visible except for My Lists */}
-        {activeTab !== 'myLists' && (
-          <div className="mb-8">
-            <SearchBar 
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              loading={loading && !!searchTerm}
-            />
-          </div>
-        )}
-
-        {/* AI Suggestion Component */}
-        {activeTab === 'discover' && !searchTerm && (
-          <AISuggestion 
-            onSuggest={handleAISuggestion}
-            loading={aiSuggestionLoading}
-          />
-        )}
-
-        {/* Advanced Filters for Discover tab */}
-        {activeTab === 'discover' && !searchTerm && (
-          <AdvancedFilters
-            selectedGenre={selectedGenre}
-            setSelectedGenre={setSelectedGenre}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            filters={advancedFilters}
-            onFilterChange={setAdvancedFilters}
-          />
-        )}
-
-        {/* Section Headers */}
-        {!searchTerm && (
-          <div className="mb-8">
-            {activeTab === 'myLists' && (
-              <div className="text-center">
-                <h2 className="text-4xl font-bold text-white mb-3">Your Collection</h2>
-                <p className="text-gray-400 text-lg">
-                  {currentData.length > 0 
-                    ? `${currentData.length} saved ${currentData.length === 1 ? 'item' : 'items'}`
-                    : "Start building your personal movie collection"
-                  }
-                </p>
-              </div>
-            )}
-            {activeTab === 'aiSuggestions' && (
-              <div className="text-center">
-                <h2 className="text-4xl font-bold text-white mb-3 flex items-center justify-center gap-3">
-                  <Sparkles className="w-8 h-8 text-purple-400" />
-                  AI Recommendations
-                </h2>
-                <p className="text-gray-400 text-lg">
-                  {currentData.length > 0 
-                    ? `Found ${currentData.length} perfect matches for you`
-                    : "Use the AI suggestion tool above to get personalized recommendations"
-                  }
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Loading State */}
-        {(loading || aiSuggestionLoading) && currentData.length === 0 ? (
-          <SkeletonGrid />
-        ) : (
-          /* Movie Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
-            {currentData.map((item) => (
-              item && <MovieCard
-                key={item.id}
-                item={item}
-                favorites={favorites}
-                watchlist={watchlist}
-                toggleFavorite={toggleFavorite}
-                toggleWatchlist={toggleWatchlist}
-                onCardClick={handleCardClick}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Empty States */}
-        {!loading && !aiSuggestionLoading && currentData.length === 0 && (
-          <div className="text-center py-20">
-            <div className="text-8xl mb-6 animate-float">
-              {activeTab === 'myLists' ? '📚' : 
-               activeTab === 'aiSuggestions' ? '🤖' :
-               searchTerm ? '🔍' : '🎬'}
+              ))}
             </div>
-            <h3 className="text-white text-3xl font-bold mb-4">
-              {activeTab === 'myLists' 
-                ? "Your collection is empty"
-                : activeTab === 'aiSuggestions'
-                ? "Ready for AI magic?"
-                : searchTerm 
-                ? "No results found" 
-                : "No movies to display"
-              }
-            </h3>
-            <p className="text-gray-400 text-lg max-w-md mx-auto">
-              {activeTab === 'myLists' 
-                ? "Start adding movies to your favorites and watchlist to see them here."
-                : activeTab === 'aiSuggestions'
-                ? "Describe what you're in the mood for and let AI find the perfect movies."
-                : searchTerm 
-                ? 'Try adjusting your search terms or browse by category.' 
-                : 'Try switching tabs or adjusting your filters.'
-              }
-            </p>
+
+            {activeTab !== 'myLists' && (
+              <SearchBar 
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                loading={loading && !!searchTerm}
+              />
+            )}
           </div>
-        )}
-      </div>
+
+          {(isAiSearch || searchTerm) ? (
+            <div className="mb-6 flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-white">Search Results</h2>
+              </div>
+              <button
+                onClick={clearSearch}
+                className="px-4 py-2 bg-purple-600/50 hover:bg-purple-600 text-white rounded-lg text-sm"
+              >
+                Clear
+              </button>
+            </div>
+          ) : activeTab === 'discover' ? (
+            <>
+              <AISuggestion onSearch={handleAiSearch} />
+              <AdvancedFilters
+                selectedGenre={selectedGenre}
+                setSelectedGenre={setSelectedGenre}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+              />
+            </>
+          ) : activeTab === 'myLists' && (
+             <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white">Your Saved Items</h2>
+              <p className="text-gray-400">
+                All your favorites and items on your watchlist appear here.
+              </p>
+            </div>
+          )}
+
+          {loading ? (
+            <SkeletonGrid />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {currentData.map((item) => (
+                item && <MovieCard
+                  key={item.id}
+                  item={item}
+                  favorites={favorites}
+                  watchlist={watchlist}
+                  toggleFavorite={toggleFavorite}
+                  toggleWatchlist={toggleWatchlist}
+                  onCardClick={handleCardClick}
+                />
+              ))}
+            </div>
+          )}
+
+          {!loading && currentData.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-indigo-400 text-6xl mb-4">🎬</div>
+              <h3 className="text-white text-xl font-semibold mb-2">No results found</h3>
+              <p className="text-gray-400">
+                {activeTab === 'myLists' 
+                  ? "You haven't saved any items yet."
+                  : (searchTerm || isAiSearch) 
+                    ? 'Try a different search.' 
+                    : 'Try adjusting your filters or switching tabs.'
+                }
+              </p>
+            </div>
+          )}
+        </div>
+      </main>
       
-      {/* Details Modal */}
       {selectedItem && (
         <DetailsModal
           item={selectedItem}

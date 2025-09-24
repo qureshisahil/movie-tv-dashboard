@@ -1,112 +1,89 @@
 import React, { useState } from 'react';
-import { Sparkles, Send, RefreshCw, Lightbulb, Wand2 } from 'lucide-react';
-import { generateRandomSuggestion } from '../utils/helpers';
+import { Sparkles } from 'lucide-react';
 
-const AISuggestion = ({ onSuggest, loading }) => {
-  const [description, setDescription] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
+// This is an ADVANCED SIMULATION. It mimics how an AI would extract keywords and genres.
+const simulateAiProcessing = async (text) => {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const lowerText = text.toLowerCase();
+      // Pre-defined genres and concepts
+      const concepts = {
+        'sci-fi': ['sci-fi', 'science fiction', 'space', 'aliens', 'future', 'robots'],
+        'comedy': ['funny', 'comedy', 'hilarious', 'laugh'],
+        'action': ['action', 'explosions', 'fast-paced', 'chase'],
+        'horror': ['horror', 'scary', 'terrifying', 'ghosts', 'monsters'],
+        'thriller': ['thriller', 'suspenseful', 'mind-bending', 'twist'],
+        'drama': ['drama', 'emotional', 'serious'],
+        'family': ['family', 'kids', 'children', 'animation'],
+        'romance': ['romance', 'love', 'romantic'],
+        'heist': ['heist', 'robbery', 'con'],
+        // Add more concepts as needed
+      };
 
-  const handleSubmit = (e) => {
+      let keywords = new Set();
+      
+      // Look for concepts
+      for (const concept in concepts) {
+        if (concepts[concept].some(keyword => lowerText.includes(keyword))) {
+          keywords.add(concept);
+        }
+      }
+
+      // Look for quoted text (like movie titles or actor names)
+      const quoted = lowerText.match(/"(.*?)"/g)?.map(q => q.replace(/"/g, '')) || [];
+      quoted.forEach(q => keywords.add(q));
+
+      // Add remaining meaningful words
+      lowerText
+        .replace(/"(.*?)"/g, '')
+        .split(' ')
+        .filter(word => word.length > 3 && !Object.values(concepts).flat().includes(word))
+        .forEach(word => keywords.add(word));
+      
+      resolve([...keywords]);
+    }, 1500); // Simulate network and AI processing delay
+  });
+};
+
+const AISuggestion = ({ onSearch }) => {
+  const [prompt, setPrompt] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (description.trim()) {
-      onSuggest(description.trim());
-    }
-  };
+    if (!prompt.trim()) return;
 
-  const handleRandomSuggestion = () => {
-    const randomSuggestion = generateRandomSuggestion();
-    setDescription(randomSuggestion);
+    setLoading(true);
+    const keywords = await simulateAiProcessing(prompt);
+    onSearch(keywords);
+    // Loading is set to false in the parent App component after fetching
   };
-
-  const quickSuggestions = [
-    'Romantic comedy in Paris',
-    'Sci-fi thriller with AI',
-    'Marvel superhero adventure',
-    'Japanese anime movie',
-    'Historical war drama',
-    'Horror with ghosts'
-  ];
 
   return (
-    <div className="glass-morphism rounded-xl p-6 border border-white/10 mb-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500">
-          <Wand2 className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <h3 className="text-xl font-bold text-white font-primary">AI Movie Suggestions</h3>
-          <p className="text-gray-400 text-sm">Describe what you're in the mood for and let AI find perfect matches</p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="relative">
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="E.g., 'A heartwarming story about friendship and adventure' or 'Dark psychological thriller with plot twists'"
-            className="w-full p-4 pr-12 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all resize-none h-20 form-control"
-            style={{ fontFamily: 'var(--font-primary)' }}
-          />
-          <button
-            type="button"
-            onClick={handleRandomSuggestion}
-            className="absolute top-3 right-3 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white transition-all tooltip"
-            data-tooltip="Get random suggestion"
-          >
-            <Lightbulb className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className="text-sm text-gray-400 mr-2">Quick ideas:</span>
-          {quickSuggestions.map((suggestion, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => setDescription(suggestion)}
-              className="px-3 py-1 text-xs bg-white/10 hover:bg-purple-500/20 text-gray-300 hover:text-white rounded-full border border-white/20 hover:border-purple-500/30 transition-all"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={!description.trim() || loading}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all btn-premium"
-          >
-            {loading ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
-            {loading ? 'Finding Movies...' : 'Get AI Suggestions'}
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => setDescription('')}
-            className="px-4 py-3 bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white rounded-xl transition-all border border-white/10"
-          >
-            Clear
-          </button>
-        </div>
+    <div className="mb-6 p-6 rounded-xl glass-effect border border-white/10 text-center">
+      <Sparkles className="mx-auto text-purple-400 mb-2" />
+      <h3 className="text-lg font-semibold text-white mb-2">Describe Your Perfect Movie</h3>
+      <p className="text-sm text-gray-400 mb-4">e.g., "A funny sci-fi movie with robots" or "something like The Matrix"</p>
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          type="text"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Describe it here..."
+          className="flex-grow pl-4 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+        />
+        <button 
+          type="submit"
+          disabled={loading}
+          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold flex items-center justify-center disabled:bg-purple-800 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            'Suggest'
+          )}
+        </button>
       </form>
-
-      {description && (
-        <div className="mt-4 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg border border-purple-500/20">
-          <div className="flex items-start gap-2">
-            <Sparkles className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-purple-200 text-sm font-medium">AI will search for:</p>
-              <p className="text-white text-sm">{description}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
