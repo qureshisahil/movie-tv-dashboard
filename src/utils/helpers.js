@@ -26,13 +26,20 @@ export const getTitle = (item) => item.title || item.name || 'Unknown Title';
 
 export const getReleaseDate = (item) => item.release_date || item.first_air_date || '';
 
-export const getMediaType = (item) => item.media_type || (item.title ? 'movie' : 'tv');
+export const getMediaType = (item) => {
+  if (item.media_type) return item.media_type;
+  if (item.hasOwnProperty('title')) return 'movie';
+  if (item.hasOwnProperty('name')) return 'tv';
+  return 'movie'; // Default to movie if unsure
+};
 
 export const getPosterUrl = (item, baseUrl) => {
   if (item.poster_path) {
     return `${baseUrl}${item.poster_path}`;
   }
-  return `https://picsum.photos/300/450?random=${item.id}`;
+  // A more consistent placeholder
+  const title = getTitle(item).replace(/\s+/g, '+');
+  return `https://via.placeholder.com/500x750.png?text=${title}`;
 };
 
 export const getGenreNames = (item) => {

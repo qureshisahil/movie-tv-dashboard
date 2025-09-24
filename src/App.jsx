@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, List } from 'lucide-react'; // Removed unused icons, added List
+import { Play, List } from 'lucide-react';
 import './App.css';
 
 import { tmdbApi } from './services/tmdbApi';
@@ -9,6 +9,7 @@ import MovieCard from './components/MovieCard';
 import ErrorDisplay from './components/ErrorDisplay';
 import DetailsModal from './components/DetailsModal';
 import AdvancedFilters from './components/AdvancedFilters';
+import { SkeletonGrid } from './components/SkeletonCard';
 
 function App() {
   const [activeTab, setActiveTab] = useState('discover');
@@ -28,7 +29,6 @@ function App() {
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [sortBy, setSortBy] = useState('popularity.desc');
 
-  // This effect now handles fetching data based on the active tab or filters
   useEffect(() => {
     if (activeTab === 'discover' && !searchTerm) {
       loadDiscoverData();
@@ -68,6 +68,11 @@ function App() {
       setLoading(false);
     }
   };
+  
+  useEffect(() => {
+    loadStaticData('trending');
+    loadStaticData('topRated');
+  }, []);
 
   const searchMovies = async (query) => {
     if (!query.trim()) {
@@ -131,6 +136,7 @@ function App() {
   };
 
   const handleCardClick = async (item) => {
+    if (!item || !item.id) return;
     setSelectedItem(item);
     setDetailsLoading(true);
     try {
@@ -141,7 +147,6 @@ function App() {
       setDetails(detailsData);
     } catch (err) {
       console.error("Failed to fetch details", err);
-      // You can set an error state for the modal here if you want
     } finally {
       setDetailsLoading(false);
     }
@@ -191,7 +196,6 @@ function App() {
                 </button>
               ))}
             </div>
-
             {activeTab !== 'myLists' && (
               <SearchBar 
                 searchTerm={searchTerm}
@@ -220,12 +224,7 @@ function App() {
           )}
 
           {loading && currentData.length === 0 ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="text-center">
-                <div className="w-12 h-12 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-purple-200">Loading...</p>
-              </div>
-            </div>
+            <SkeletonGrid />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {currentData.map((item) => (
@@ -265,6 +264,7 @@ function App() {
           details={details}
           loading={detailsLoading}
           onClose={handleCloseDetails}
+          onCardClick={handleCardClick}
         />
       )}
     </div>
