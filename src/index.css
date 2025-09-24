@@ -8,8 +8,13 @@ body {
   font-family: 'Inter', sans-serif; /* Using Inter font - ensure it's imported or available */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0d0d12; /* A dark, deep background for premium feel */
 }
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
 
 /* Custom scrollbar for a sleeker look */
 ::-webkit-scrollbar {
@@ -39,6 +44,25 @@ body {
 /* Custom class for backdrop-filter for broader support/specific effects */
 .glass-effect {
   background-color: rgba(255, 255, 255, 0.08); /* A very light transparent white */
-  backdrop-filter: blur(20px) saturate(180%); /* Stronger blur and saturation */
-  -webkit-backdrop-filter: blur(20px) saturate(180%); /* Safari support */
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Animations for modal opening/closing */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1.2) forwards; /* Bouncy scale */
 }
